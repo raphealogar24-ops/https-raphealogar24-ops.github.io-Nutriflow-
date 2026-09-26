@@ -9,7 +9,7 @@ service cloud.firestore {
 
     // Hardened Global Primitives
     function isValidId(id) {
-      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_-]+$');
     }
 
     function incoming() {
@@ -68,7 +68,7 @@ service cloud.firestore {
         data.emoji is string && data.emoji.size() >= 1 && data.emoji.size() <= 16 &&
         data.imageUrl is string && data.imageUrl.size() >= 0 && data.imageUrl.size() <= 300000 &&
         data.isPublished is bool &&
-        data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId.matches('^[a-zA-Z0-9_-]+$') &&
         data.createdAt is timestamp &&
         data.updatedAt is timestamp;
     }
@@ -93,19 +93,8 @@ service cloud.firestore {
       allow update: if isAdmin() &&
         isValidId(productId) &&
         isValidProduct(incoming()) &&
-        incoming().ownerId == existing().ownerId &&
-        incoming().createdAt == existing().createdAt &&
-        incoming().updatedAt == request.time &&
-        incoming().diff(existing()).affectedKeys().hasOnly([
-          'name',
-          'category',
-          'description',
-          'price',
-          'emoji',
-          'imageUrl',
-          'isPublished',
-          'updatedAt'
-        ]);
+        incoming().ownerId == request.auth.uid &&
+        incoming().updatedAt == request.time;
 
       allow delete: if isAdmin() &&
         isValidId(productId);

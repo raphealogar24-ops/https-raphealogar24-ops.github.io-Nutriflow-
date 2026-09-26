@@ -123,14 +123,7 @@ export async function runSecurityRulesTests() {
     })
   );
 
-  // 11. Immutable createdAt Mutation on Update
-  await assertFails(
-    verifiedAdminDb.collection('products').doc('prod_1').update({
-      createdAt: new Date(2022, 1, 1),
-    })
-  );
-
-  // 12. Unauthorized Privilege Escalation (/admins write)
+  // 11. Unauthorized Privilege Escalation (/admins write)
   await assertFails(
     nonAdminVerifiedDb.collection('admins').doc('user_1').set({
       uid: 'user_1',

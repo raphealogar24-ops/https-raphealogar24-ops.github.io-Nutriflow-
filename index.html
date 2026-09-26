@@ -8,6 +8,32 @@
   <meta name="description" content="Fresh &amp; Cold Drinks storefront with cart, delivery options, and checkout.">
   <meta property="og:title" content="R&amp;P Nutriflow">
   <meta property="og:description" content="Fresh &amp; Cold Drinks storefront with cart, delivery options, and checkout.">
+  <script>
+    (function () {
+      const nativeStringify = JSON.stringify;
+      JSON.stringify = function (value, replacer, space) {
+        try {
+          return nativeStringify.call(this, value, replacer, space);
+        } catch (err) {
+          const seen = new WeakSet();
+          const safeReplacer = function (key, val) {
+            if (typeof val === 'object' && val !== null) {
+              if (seen.has(val)) {
+                return '[Circular]';
+              }
+              seen.add(val);
+            }
+            return typeof replacer === 'function' ? replacer.call(this, key, val) : val;
+          };
+          try {
+            return nativeStringify.call(this, value, safeReplacer, space);
+          } catch (e2) {
+            return 'null';
+          }
+        }
+      };
+    })();
+  </script>
   <script type="importmap">
     {
       "imports": {
@@ -56,7 +82,8 @@
     .brand-group {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 16px;
+      flex-wrap: wrap;
     }
 
     header h1 {
@@ -68,6 +95,41 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
+      cursor: pointer;
+    }
+
+    .nav-switcher {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(0, 0, 0, 0.28);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid rgba(34, 197, 94, 0.22);
+    }
+
+    .nav-switch-btn {
+      padding: 7px 13px;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #9ca3af;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .nav-switch-btn:hover {
+      color: white;
+    }
+
+    .nav-switch-btn.active {
+      background: #22c55e;
+      color: #052e16;
+      font-weight: 700;
+      box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
     }
 
     .header-actions {
@@ -502,6 +564,118 @@
       transform: scale(0.97);
     }
 
+    /* Admin Site View Styles */
+    .admin-login-box {
+      max-width: 460px;
+      margin: 28px auto;
+      background: #141d26;
+      border: 1px solid rgba(34, 197, 94, 0.28);
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .admin-dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (min-width: 920px) {
+      .admin-dashboard-grid {
+        grid-template-columns: 420px 1fr;
+      }
+    }
+
+    .admin-panel-card {
+      background: #141d26;
+      border: 1px solid rgba(34, 197, 94, 0.22);
+      border-radius: 16px;
+      padding: 24px;
+    }
+
+    .admin-inventory-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .admin-inventory-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 14px;
+      background: #0b1116;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      flex-wrap: wrap;
+    }
+
+    .admin-item-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex: 1;
+      min-width: 220px;
+    }
+
+    .admin-item-thumb {
+      width: 60px;
+      height: 60px;
+      border-radius: 10px;
+      background: #141d26;
+      border: 1px solid rgba(34, 197, 94, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      font-size: 28px;
+      flex-shrink: 0;
+    }
+
+    .admin-item-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .admin-item-details {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .admin-item-title {
+      font-weight: 700;
+      font-size: 15px;
+      color: white;
+      margin-bottom: 2px;
+    }
+
+    .admin-item-sub {
+      font-size: 12px;
+      color: #4ade80;
+      margin-bottom: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .admin-item-desc {
+      font-size: 12px;
+      color: #9ca3af;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 380px;
+    }
+
+    .admin-item-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
     /* Modals */
     .modal-backdrop {
       position: fixed;
@@ -923,7 +1097,7 @@
       display: flex;
     }
 
-    .admin-only-hidden {
+    .hidden-view {
       display: none !important;
     }
   </style>
@@ -931,17 +1105,19 @@
  <body>
   <header>
    <div class="brand-group">
-    <h1>🥤 R&amp;P Nutriflow</h1>
+    <h1 id="brandLogoBtn">🥤 R&amp;P Nutriflow</h1>
+    <nav class="nav-switcher" aria-label="View switcher">
+     <button type="button" class="nav-switch-btn active" id="navStorefrontBtn">
+      <i data-lucide="store" style="width: 15px; height: 15px;"></i>
+      <span>Storefront</span>
+     </button>
+     <button type="button" class="nav-switch-btn" id="navAdminSiteBtn">
+      <i data-lucide="shield" style="width: 15px; height: 15px;"></i>
+      <span id="navAdminSiteLabel">Admin Site</span>
+     </button>
+    </nav>
    </div>
    <div class="header-actions">
-    <button class="upload-header-btn admin-only-hidden" id="openUploadModalBtn" type="button">
-     <i data-lucide="image-plus" style="width: 16px; height: 16px;"></i>
-     <span>Upload Good</span>
-    </button>
-    <button class="secondary-header-btn" id="authSyncBtn" type="button" title="Admin login to upload product photos &amp; descriptions">
-     <i data-lucide="shield" style="width: 15px; height: 15px;"></i>
-     <span id="authSyncLabel">Admin Login</span>
-    </button>
     <a href="https://wa.me/2348144899449" target="_blank" rel="noopener noreferrer" class="secondary-header-btn">
      <i data-lucide="message-circle" style="width: 15px; height: 15px;"></i>
      <span>WhatsApp</span>
@@ -955,16 +1131,17 @@
   </header>
 
   <main>
-   <div class="container">
+   <!-- 1. CUSTOMER STOREFRONT VIEW -->
+   <div class="container" id="storefrontView">
     <div class="hero">
      <div class="hero-text">
       <h2>Fresh &amp; Cold Drinks &amp; Goods</h2>
       <p id="heroSubtitleText">Your favorite chilled beverages and store goods delivered fresh. Order now or reach us on WhatsApp for special requests!</p>
      </div>
-     <div class="hero-cta-group admin-only-hidden" id="heroAdminCtaGroup">
-      <button class="upload-header-btn" id="heroUploadBtn" type="button">
+     <div class="hero-cta-group hidden-view" id="heroAdminCtaGroup">
+      <button class="upload-header-btn" id="heroGoToAdminBtn" type="button">
        <i data-lucide="upload" style="width: 16px; height: 16px;"></i>
-       <span>Add New Good &amp; Photo</span>
+       <span>Open Admin Upload Studio</span>
       </button>
      </div>
     </div>
@@ -984,135 +1161,271 @@
 
     <div class="products-grid" id="productsGrid"></div>
    </div>
+
+   <!-- 2. DEDICATED ADMIN SITE VIEW -->
+   <div class="container hidden-view" id="adminSiteView">
+    <!-- Shown when Admin is NOT signed in with password yet -->
+    <div class="admin-login-box" id="adminLoginBox">
+     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+      <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(34, 197, 94, 0.15); display: flex; align-items: center; justify-content: center; color: #4ade80;">
+       <i data-lucide="lock" style="width: 22px; height: 22px;"></i>
+      </div>
+      <div>
+       <h2 style="font-family: 'Poppins', sans-serif; font-size: 20px; font-weight: 700; color: white;">Admin Password Login</h2>
+       <p style="font-size: 12px; color: #9ca3af;">Protected Access · R&amp;P Nutriflow Store Owner</p>
+      </div>
+     </div>
+
+     <p style="font-size: 13px; color: #d1d5db; line-height: 1.55; margin-bottom: 18px;">
+      Enter your admin email and password to unlock the Admin Site and upload pictures or edit store goods.
+     </p>
+
+     <form id="adminPasscodeForm" autocomplete="on">
+      <div class="form-group">
+       <label class="form-label" for="adminEmailInput" style="margin-bottom: 6px;">Admin Email</label>
+       <input type="email" id="adminEmailInput" class="form-input" value="raphealogar24@gmail.com" required placeholder="raphealogar24@gmail.com" autocomplete="username" />
+      </div>
+
+      <div class="form-group">
+       <div class="form-label-row">
+        <label class="form-label" for="adminPasscodeInput">Admin Password *</label>
+       </div>
+       <div style="position: relative; display: flex; align-items: center;">
+        <input type="password" id="adminPasscodeInput" class="form-input" required placeholder="Enter your admin password" value="" autocomplete="current-password" style="padding-right: 42px;" />
+        <button type="button" id="togglePasswordVisibilityBtn" aria-label="Show or hide password" style="position: absolute; right: 8px; background: transparent; color: #9ca3af; padding: 6px; display: flex; align-items: center; justify-content: center;">
+         <i data-lucide="eye" style="width: 16px; height: 16px;"></i>
+        </button>
+       </div>
+      </div>
+
+      <div id="adminLoginError" style="display: none; background: rgba(239, 68, 68, 0.14); border: 1px solid rgba(239, 68, 68, 0.35); color: #fca5a5; padding: 10px 12px; border-radius: 8px; font-size: 12px; margin-bottom: 14px;"></div>
+
+      <button type="submit" class="upload-header-btn" style="width: 100%; justify-content: center; padding: 12px; font-size: 14px;">
+       <i data-lucide="key-round" style="width: 16px; height: 16px;"></i>
+       <span>Login to Admin Site</span>
+      </button>
+     </form>
+    </div>
+
+    <!-- Shown when Admin IS logged in with password -->
+    <div id="adminDashboardContent" class="hidden-view">
+     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; padding: 20px 24px; background: linear-gradient(135deg, rgba(34, 197, 94, 0.14) 0%, rgba(16, 185, 129, 0.05) 100%); border: 1px solid rgba(34, 197, 94, 0.28); border-radius: 14px;">
+      <div>
+       <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px;">
+        <h2 style="font-family: 'Poppins', sans-serif; font-size: 22px; font-weight: 700; color: white;">
+         Admin Studio — Upload Goods &amp; Descriptions
+        </h2>
+        <span id="syncStatusBadge" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; background: rgba(34, 197, 94, 0.16); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3);">
+         <i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i>
+         <span id="syncStatusText">Live Sync Active</span>
+        </span>
+       </div>
+       <p style="font-size: 13px; color: #9ca3af;">
+        Signed in as <strong style="color: #4ade80;">raphealogar24@gmail.com</strong> · Changes sync automatically to all customer devices.
+       </p>
+      </div>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+       <button type="button" class="upload-header-btn" id="syncCatalogBtn" title="Sync all goods, photos, and prices across server &amp; devices">
+        <i data-lucide="refresh-cw" style="width: 15px; height: 15px;"></i>
+        <span id="syncCatalogBtnLabel">Sync Now</span>
+       </button>
+       <button type="button" class="secondary-header-btn" id="cloudSyncGoogleBtn" title="Connect Google (raphealogar24@gmail.com) to also backup &amp; sync with Firebase Cloud">
+        <i data-lucide="cloud" style="width: 15px; height: 15px;"></i>
+        <span id="cloudSyncGoogleBtnLabel">Cloud Sync</span>
+       </button>
+       <button type="button" class="secondary-header-btn" id="openChangePasswordModalBtn">
+        <i data-lucide="key-round" style="width: 15px; height: 15px;"></i>
+        <span>Change Password</span>
+       </button>
+       <button type="button" class="secondary-header-btn" id="adminBackToStoreBtn">
+        <i data-lucide="eye" style="width: 15px; height: 15px;"></i>
+        <span>Preview Storefront</span>
+       </button>
+       <button type="button" class="remove-btn" id="adminSignOutBtn" style="padding: 8px 14px; border-radius: 8px; font-size: 13px;">
+        Lock &amp; Sign Out
+       </button>
+      </div>
+     </div>
+
+     <div class="admin-dashboard-grid">
+      <!-- Left Column: Upload / Edit Form -->
+      <div class="admin-panel-card">
+       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+        <h3 id="productModalTitle" style="font-family: 'Poppins', sans-serif; font-size: 18px; font-weight: 700; color: white;">
+         Upload New Good
+        </h3>
+        <button type="button" class="secondary-header-btn hidden-view" id="resetFormBtn" style="padding: 5px 10px; font-size: 12px;">
+         + New Good
+        </button>
+       </div>
+
+       <form id="productForm">
+        <input type="hidden" id="editProductId" value="" />
+
+        <div class="form-group">
+         <div class="form-label-row">
+          <label class="form-label">Product Picture</label>
+          <span class="char-counter">JPG, PNG, or WebP</span>
+         </div>
+
+         <input type="file" id="imageFileInput" accept="image/*" style="display: none;" />
+
+         <div class="upload-dropzone" id="uploadDropzone">
+          <div id="dropzonePrompt">
+           <i data-lucide="upload-cloud" style="width: 36px; height: 36px; color: #4ade80; margin: 0 auto 8px auto; display: block;"></i>
+           <div style="font-size: 14px; font-weight: 600; color: white; margin-bottom: 4px;">
+            Tap to upload a picture of your good
+           </div>
+           <div style="font-size: 12px; color: #9ca3af;">
+            Choose from gallery, camera, or drag &amp; drop
+           </div>
+          </div>
+
+          <div class="preview-container" id="imagePreviewContainer">
+           <img id="imagePreviewEl" src="" alt="Uploaded product preview" />
+           <div class="preview-actions">
+            <button type="button" class="secondary-header-btn" id="changeImageBtn">
+             <i data-lucide="refresh-cw" style="width: 13px; height: 13px;"></i>
+             Change Picture
+            </button>
+            <button type="button" class="remove-btn" id="removeImageBtn" style="padding: 8px 12px; border-radius: 8px;">
+             Remove
+            </button>
+           </div>
+          </div>
+         </div>
+
+         <div style="margin-top: 10px;">
+          <input type="url" id="imageUrlInput" class="form-input" placeholder="Or paste an image link (https://...)" style="font-size: 12px; padding: 8px 10px;" />
+         </div>
+        </div>
+
+        <div class="form-row-2">
+         <div class="form-group">
+          <div class="form-label-row">
+           <label class="form-label" for="productNameInput">Name of Good *</label>
+          </div>
+          <input type="text" id="productNameInput" class="form-input" required maxlength="100" placeholder="e.g. Tiger Nut Milk" />
+         </div>
+
+         <div class="form-group">
+          <div class="form-label-row">
+           <label class="form-label" for="productPriceInput">Price (₦) *</label>
+          </div>
+          <input type="number" id="productPriceInput" class="form-input" required min="0" max="10000000" step="1" placeholder="e.g. 800" />
+         </div>
+        </div>
+
+        <div class="form-row-2">
+         <div class="form-group">
+          <div class="form-label-row">
+           <label class="form-label" for="productCategoryInput">Category *</label>
+          </div>
+          <input type="text" id="productCategoryInput" list="categoryOptionsList" class="form-input" required maxlength="60" placeholder="e.g. Non-Carbonated" value="Non-Carbonated" />
+          <datalist id="categoryOptionsList">
+           <option value="Non-Carbonated"></option>
+           <option value="Carbonated"></option>
+           <option value="Dairy"></option>
+           <option value="Water"></option>
+           <option value="Fresh Juice"></option>
+           <option value="Smoothies"></option>
+           <option value="Snacks &amp; Goods"></option>
+          </datalist>
+         </div>
+
+         <div class="form-group">
+          <div class="form-label-row">
+           <label class="form-label">Fallback Icon</label>
+          </div>
+          <input type="hidden" id="productEmojiInput" value="🥤" />
+          <div class="emoji-picker-row" id="emojiPickerRow">
+           <button type="button" class="emoji-choice selected" data-emoji="🥤">🥤</button>
+           <button type="button" class="emoji-choice" data-emoji="🥛">🥛</button>
+           <button type="button" class="emoji-choice" data-emoji="🍷">🍷</button>
+           <button type="button" class="emoji-choice" data-emoji="🧡">🧡</button>
+           <button type="button" class="emoji-choice" data-emoji="🟢">🟢</button>
+           <button type="button" class="emoji-choice" data-emoji="🔴">🔴</button>
+           <button type="button" class="emoji-choice" data-emoji="💧">💧</button>
+           <button type="button" class="emoji-choice" data-emoji="🍍">🍍</button>
+           <button type="button" class="emoji-choice" data-emoji="🛍️">🛍️</button>
+          </div>
+         </div>
+        </div>
+
+        <div class="form-group">
+         <div class="form-label-row">
+          <label class="form-label" for="productDescInput">Description of Good *</label>
+          <span class="char-counter" id="descCharCounter">0 / 1000</span>
+         </div>
+         <textarea id="productDescInput" class="form-textarea" maxlength="1000" placeholder="Describe the ingredients, size, taste, or details of this good..."></textarea>
+        </div>
+
+        <button type="submit" class="upload-header-btn" id="saveProductBtn" style="width: 100%; justify-content: center; padding: 12px; font-size: 14px;">
+         <i data-lucide="check" style="width: 17px; height: 17px;"></i>
+         <span id="saveProductBtnText">Upload &amp; Save Good</span>
+        </button>
+       </form>
+      </div>
+
+      <!-- Right Column: Manage Existing Store Goods -->
+      <div class="admin-panel-card">
+       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+        <h3 style="font-family: 'Poppins', sans-serif; font-size: 18px; font-weight: 700; color: white;">
+         Manage Store Goods
+        </h3>
+        <span class="catalog-meta" id="adminInventoryCount">0 goods</span>
+       </div>
+       <p style="font-size: 12px; color: #9ca3af; margin-bottom: 14px;">
+        Click <strong>Edit / Upload Picture</strong> on any good below to add or change its photo and description.
+       </p>
+       <div class="admin-inventory-list" id="adminInventoryList"></div>
+      </div>
+     </div>
+    </div>
+   </div>
   </main>
 
   <div class="overlay" id="overlay"></div>
 
-  <!-- Upload / Edit Good Modal (Admin Only) -->
-  <div class="modal-backdrop" id="productModal">
-   <div class="modal-card">
+  <!-- Product Detail Modal -->
+  <div class="modal-backdrop" id="detailModal">
+   <div class="modal-card" id="detailModalCard"></div>
+  </div>
+
+  <!-- Change Admin Password Modal -->
+  <div class="modal-backdrop" id="changePasswordModal">
+   <div class="modal-card" style="max-width: 420px;">
     <div class="modal-header">
-     <h3 id="productModalTitle">Upload New Good</h3>
-     <button class="close-btn" id="closeProductModalBtn" type="button">
+     <h3>Change Admin Password</h3>
+     <button class="close-btn" id="closeChangePasswordModalBtn" type="button">
       <i data-lucide="x" style="width: 18px; height: 18px;"></i>
      </button>
     </div>
 
-    <form id="productForm">
-     <input type="hidden" id="editProductId" value="" />
-
+    <form id="changePasswordForm">
      <div class="form-group">
-      <div class="form-label-row">
-       <label class="form-label">Product Photo</label>
-       <span class="char-counter">JPG, PNG, or WebP (auto-optimized)</span>
-      </div>
-
-      <input type="file" id="imageFileInput" accept="image/*" style="display: none;" />
-
-      <div class="upload-dropzone" id="uploadDropzone">
-       <div id="dropzonePrompt">
-        <i data-lucide="upload-cloud" style="width: 34px; height: 34px; color: #4ade80; margin: 0 auto 8px auto; display: block;"></i>
-        <div style="font-size: 14px; font-weight: 600; color: white; margin-bottom: 4px;">
-         Click to select a photo or drag &amp; drop here
-        </div>
-        <div style="font-size: 12px; color: #9ca3af;">
-         Upload a clear photo of your drink or good
-        </div>
-       </div>
-
-       <div class="preview-container" id="imagePreviewContainer">
-        <img id="imagePreviewEl" src="" alt="Uploaded product preview" />
-        <div class="preview-actions">
-         <button type="button" class="secondary-header-btn" id="changeImageBtn">
-          <i data-lucide="refresh-cw" style="width: 13px; height: 13px;"></i>
-          Change Photo
-         </button>
-         <button type="button" class="remove-btn" id="removeImageBtn" style="padding: 8px 12px; border-radius: 8px;">
-          Remove Photo
-         </button>
-        </div>
-       </div>
-      </div>
-
-      <div style="margin-top: 10px;">
-       <input type="url" id="imageUrlInput" class="form-input" placeholder="Or paste an image URL (https://...)" style="font-size: 12px; padding: 8px 10px;" />
-      </div>
-     </div>
-
-     <div class="form-row-2">
-      <div class="form-group">
-       <div class="form-label-row">
-        <label class="form-label" for="productNameInput">Name of Good *</label>
-       </div>
-       <input type="text" id="productNameInput" class="form-input" required maxlength="100" placeholder="e.g. Tiger Nut Milk" />
-      </div>
-
-      <div class="form-group">
-       <div class="form-label-row">
-        <label class="form-label" for="productPriceInput">Price (₦) *</label>
-       </div>
-       <input type="number" id="productPriceInput" class="form-input" required min="0" max="10000000" step="1" placeholder="e.g. 800" />
-      </div>
-     </div>
-
-     <div class="form-row-2">
-      <div class="form-group">
-       <div class="form-label-row">
-        <label class="form-label" for="productCategoryInput">Category *</label>
-       </div>
-       <input type="text" id="productCategoryInput" list="categoryOptionsList" class="form-input" required maxlength="60" placeholder="e.g. Non-Carbonated" />
-       <datalist id="categoryOptionsList">
-        <option value="Non-Carbonated"></option>
-        <option value="Carbonated"></option>
-        <option value="Dairy"></option>
-        <option value="Water"></option>
-        <option value="Fresh Juice"></option>
-        <option value="Smoothies"></option>
-        <option value="Snacks &amp; Goods"></option>
-       </datalist>
-      </div>
-
-      <div class="form-group">
-       <div class="form-label-row">
-        <label class="form-label">Fallback Icon</label>
-       </div>
-       <input type="hidden" id="productEmojiInput" value="🥤" />
-       <div class="emoji-picker-row" id="emojiPickerRow">
-        <button type="button" class="emoji-choice selected" data-emoji="🥤">🥤</button>
-        <button type="button" class="emoji-choice" data-emoji="🥛">🥛</button>
-        <button type="button" class="emoji-choice" data-emoji="🍷">🍷</button>
-        <button type="button" class="emoji-choice" data-emoji="🧡">🧡</button>
-        <button type="button" class="emoji-choice" data-emoji="🟢">🟢</button>
-        <button type="button" class="emoji-choice" data-emoji="🔴">🔴</button>
-        <button type="button" class="emoji-choice" data-emoji="💧">💧</button>
-        <button type="button" class="emoji-choice" data-emoji="🍍">🍍</button>
-        <button type="button" class="emoji-choice" data-emoji="🛍️">🛍️</button>
-       </div>
-      </div>
+      <label class="form-label" for="currentAdminPasswordInput" style="margin-bottom: 6px;">Current Password *</label>
+      <input type="password" id="currentAdminPasswordInput" class="form-input" required placeholder="Enter current password" />
      </div>
 
      <div class="form-group">
-      <div class="form-label-row">
-       <label class="form-label" for="productDescInput">Description of Good *</label>
-       <span class="char-counter" id="descCharCounter">0 / 1000</span>
-      </div>
-      <textarea id="productDescInput" class="form-textarea" maxlength="1000" placeholder="Describe the ingredients, size, taste, or details of this good..."></textarea>
+      <label class="form-label" for="newAdminPasswordInput" style="margin-bottom: 6px;">New Password *</label>
+      <input type="password" id="newAdminPasswordInput" class="form-input" required minlength="4" maxlength="64" placeholder="Enter new password (min 4 chars)" />
      </div>
 
-     <div class="modal-footer-btns">
-      <button type="button" class="secondary-header-btn" id="cancelProductModalBtn">Cancel</button>
-      <button type="submit" class="upload-header-btn" id="saveProductBtn">
-       <i data-lucide="check" style="width: 16px; height: 16px;"></i>
-       <span id="saveProductBtnText">Save Good</span>
-      </button>
+     <div class="form-group">
+      <label class="form-label" for="confirmAdminPasswordInput" style="margin-bottom: 6px;">Confirm New Password *</label>
+      <input type="password" id="confirmAdminPasswordInput" class="form-input" required minlength="4" maxlength="64" placeholder="Re-enter new password" />
      </div>
+
+     <div id="changePasswordError" style="display: none; background: rgba(239, 68, 68, 0.14); border: 1px solid rgba(239, 68, 68, 0.35); color: #fca5a5; padding: 10px 12px; border-radius: 8px; font-size: 12px; margin-bottom: 14px;"></div>
+
+     <button type="submit" class="upload-header-btn" style="width: 100%; justify-content: center; padding: 12px; font-size: 14px;">
+      <i data-lucide="check" style="width: 16px; height: 16px;"></i>
+      <span>Save New Password</span>
+     </button>
     </form>
    </div>
-  </div>
-
-  <!-- Product Detail Modal -->
-  <div class="modal-backdrop" id="detailModal">
-   <div class="modal-card" id="detailModalCard"></div>
   </div>
 
   <!-- Payment Modal -->
@@ -1213,6 +1526,7 @@
     } from 'firebase/firestore';
 
     const ADMIN_EMAIL = 'raphealogar24@gmail.com';
+    const ADMIN_TOKEN_STORAGE_KEY = 'rp_nutriflow_admin_token';
 
     const OperationType = {
       CREATE: 'create',
@@ -1227,13 +1541,24 @@
     let auth = null;
     let currentUser = null;
     let isFirestoreAdminRecord = false;
+    let serverAdminToken = sessionStorage.getItem(ADMIN_TOKEN_STORAGE_KEY) || '';
+    let activeView = 'storefront'; // 'storefront' | 'admin'
 
-    function isAdmin() {
+    function isFirebaseAdmin() {
       if (!currentUser || !currentUser.emailVerified) return false;
       return (
         String(currentUser.email || '').toLowerCase() === ADMIN_EMAIL ||
         isFirestoreAdminRecord
       );
+    }
+
+    // Admin access strictly requires logging in with the Admin Password
+    function isAdmin() {
+      return Boolean(serverAdminToken);
+    }
+
+    async function getAdminAuthToken() {
+      return serverAdminToken || '';
     }
 
     function handleFirestoreError(error, operationType, path) {
@@ -1332,14 +1657,27 @@
     ];
 
     const LOCAL_STORAGE_KEY = 'rp_nutriflow_products_v2';
+    const DELETED_IDS_STORAGE_KEY = 'rp_nutriflow_deleted_ids_v1';
     let products = [];
     let firestoreItemsMap = new Map();
+    let firestoreRawCreatedAtMap = new Map();
     let serverItems = [];
+    let deletedProductIds = new Set(
+      JSON.parse(localStorage.getItem(DELETED_IDS_STORAGE_KEY) || '[]')
+    );
     let activeCategory = 'All';
     let searchQuery = '';
     let cart = [];
     let selectedDelivery = null;
     let currentImageDataUrl = '';
+    let syncChannel = null;
+    try {
+      if ('BroadcastChannel' in window) {
+        syncChannel = new BroadcastChannel('rp_nutriflow_catalog_sync');
+      }
+    } catch (e) {
+      syncChannel = null;
+    }
 
     const deliveryOptions = [
       { area: 'Gwandong FTZ', cost: 600 },
@@ -1348,6 +1686,37 @@
     ];
 
     // DOM Elements
+    const storefrontView = document.getElementById('storefrontView');
+    const adminSiteView = document.getElementById('adminSiteView');
+    const navStorefrontBtn = document.getElementById('navStorefrontBtn');
+    const navAdminSiteBtn = document.getElementById('navAdminSiteBtn');
+    const navAdminSiteLabel = document.getElementById('navAdminSiteLabel');
+    const adminLoginBox = document.getElementById('adminLoginBox');
+    const adminDashboardContent = document.getElementById('adminDashboardContent');
+    const adminPasscodeForm = document.getElementById('adminPasscodeForm');
+    const adminEmailInput = document.getElementById('adminEmailInput');
+    const adminPasscodeInput = document.getElementById('adminPasscodeInput');
+    const togglePasswordVisibilityBtn = document.getElementById('togglePasswordVisibilityBtn');
+    const adminLoginError = document.getElementById('adminLoginError');
+    const openChangePasswordModalBtn = document.getElementById('openChangePasswordModalBtn');
+    const syncCatalogBtn = document.getElementById('syncCatalogBtn');
+    const syncCatalogBtnLabel = document.getElementById('syncCatalogBtnLabel');
+    const cloudSyncGoogleBtn = document.getElementById('cloudSyncGoogleBtn');
+    const cloudSyncGoogleBtnLabel = document.getElementById('cloudSyncGoogleBtnLabel');
+    const syncStatusText = document.getElementById('syncStatusText');
+    const changePasswordModal = document.getElementById('changePasswordModal');
+    const closeChangePasswordModalBtn = document.getElementById('closeChangePasswordModalBtn');
+    const changePasswordForm = document.getElementById('changePasswordForm');
+    const currentAdminPasswordInput = document.getElementById('currentAdminPasswordInput');
+    const newAdminPasswordInput = document.getElementById('newAdminPasswordInput');
+    const confirmAdminPasswordInput = document.getElementById('confirmAdminPasswordInput');
+    const changePasswordError = document.getElementById('changePasswordError');
+    const adminBackToStoreBtn = document.getElementById('adminBackToStoreBtn');
+    const adminSignOutBtn = document.getElementById('adminSignOutBtn');
+    const adminInventoryList = document.getElementById('adminInventoryList');
+    const adminInventoryCount = document.getElementById('adminInventoryCount');
+    const resetFormBtn = document.getElementById('resetFormBtn');
+
     const productsGrid = document.getElementById('productsGrid');
     const categoryTabs = document.getElementById('categoryTabs');
     const searchInput = document.getElementById('searchInput');
@@ -1363,11 +1732,9 @@
     const totalEl = document.getElementById('total');
     const checkoutBtn = document.getElementById('checkoutBtn');
 
-    // Admin & Modal Elements
-    const openUploadModalBtn = document.getElementById('openUploadModalBtn');
+    // Admin Form Elements
     const heroAdminCtaGroup = document.getElementById('heroAdminCtaGroup');
-    const heroSubtitleText = document.getElementById('heroSubtitleText');
-    const productModal = document.getElementById('productModal');
+    const heroGoToAdminBtn = document.getElementById('heroGoToAdminBtn');
     const productModalTitle = document.getElementById('productModalTitle');
     const productForm = document.getElementById('productForm');
     const editProductIdInput = document.getElementById('editProductId');
@@ -1386,10 +1753,9 @@
     const emojiPickerRow = document.getElementById('emojiPickerRow');
     const productDescInput = document.getElementById('productDescInput');
     const descCharCounter = document.getElementById('descCharCounter');
+    const saveProductBtnText = document.getElementById('saveProductBtnText');
     const detailModal = document.getElementById('detailModal');
     const detailModalCard = document.getElementById('detailModalCard');
-    const authSyncBtn = document.getElementById('authSyncBtn');
-    const authSyncLabel = document.getElementById('authSyncLabel');
     const toastBanner = document.getElementById('toastBanner');
     const toastMessage = document.getElementById('toastMessage');
 
@@ -1410,30 +1776,212 @@
         .replace(/'/g, '&#39;');
     }
 
+    function switchView(viewName) {
+      activeView = viewName;
+      const isStore = viewName === 'storefront';
+      storefrontView.classList.toggle('hidden-view', !isStore);
+      adminSiteView.classList.toggle('hidden-view', isStore);
+      navStorefrontBtn.classList.toggle('active', isStore);
+      navAdminSiteBtn.classList.toggle('active', !isStore);
+      updateAdminUI();
+      lucide.createIcons();
+    }
+
+    navStorefrontBtn.addEventListener('click', () => switchView('storefront'));
+    document.getElementById('brandLogoBtn').addEventListener('click', () => switchView('storefront'));
+    navAdminSiteBtn.addEventListener('click', () => switchView('admin'));
+    adminBackToStoreBtn.addEventListener('click', () => switchView('storefront'));
+    heroGoToAdminBtn.addEventListener('click', () => switchView('admin'));
+
     function updateAdminUI() {
       const adminActive = isAdmin();
-      openUploadModalBtn.classList.toggle('admin-only-hidden', !adminActive);
-      heroAdminCtaGroup.classList.toggle('admin-only-hidden', !adminActive);
+      heroAdminCtaGroup.classList.toggle('hidden-view', !adminActive);
+      navAdminSiteLabel.textContent = adminActive ? 'Admin Site (Unlocked)' : 'Admin Site';
 
-      if (adminActive) {
-        authSyncLabel.textContent = 'Admin Mode (Sign Out)';
-        heroSubtitleText.textContent =
-          'Admin Mode active: You can upload new goods, add or replace product photos, and edit descriptions.';
-      } else if (currentUser) {
-        authSyncLabel.textContent = 'Sign Out';
-        heroSubtitleText.textContent =
-          'Your favorite chilled beverages and store goods delivered fresh. Order now or reach us on WhatsApp for special requests!';
-      } else {
-        authSyncLabel.textContent = 'Admin Login';
-        heroSubtitleText.textContent =
-          'Your favorite chilled beverages and store goods delivered fresh. Order now or reach us on WhatsApp for special requests!';
-      }
+      adminLoginBox.classList.toggle('hidden-view', adminActive);
+      adminDashboardContent.classList.toggle('hidden-view', !adminActive);
 
-      if (!adminActive) {
-        productModal.classList.remove('open');
+      if (cloudSyncGoogleBtnLabel) {
+        cloudSyncGoogleBtnLabel.textContent = isFirebaseAdmin()
+          ? 'Cloud Connected ✓'
+          : 'Connect Cloud Sync';
       }
 
       renderProducts();
+      renderAdminInventory();
+      lucide.createIcons();
+    }
+
+    function setSyncStatus(label) {
+      if (syncStatusText) {
+        syncStatusText.textContent = label;
+      }
+    }
+
+    // Toggle password visibility on login input
+    let isPasswordVisible = false;
+    togglePasswordVisibilityBtn.addEventListener('click', () => {
+      isPasswordVisible = !isPasswordVisible;
+      adminPasscodeInput.type = isPasswordVisible ? 'text' : 'password';
+      togglePasswordVisibilityBtn.innerHTML = `<i data-lucide="${isPasswordVisible ? 'eye-off' : 'eye'}" style="width: 16px; height: 16px;"></i>`;
+      lucide.createIcons();
+    });
+
+    // Verify stored admin session token with server on load
+    async function verifyStoredAdminSession() {
+      if (!serverAdminToken) {
+        updateAdminUI();
+        return;
+      }
+      try {
+        const res = await fetch('/api/admin/session', {
+          headers: { Authorization: `Bearer ${serverAdminToken}` }
+        });
+        if (!res.ok) {
+          serverAdminToken = '';
+          sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
+        }
+      } catch (e) {
+        // Keep session if offline
+      }
+      updateAdminUI();
+    }
+
+    // Admin Login via Email + Password
+    adminPasscodeForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      adminLoginError.style.display = 'none';
+      const email = adminEmailInput.value.trim();
+      const password = adminPasscodeInput.value.trim();
+
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          adminLoginError.textContent = data.error || 'Incorrect admin password.';
+          adminLoginError.style.display = 'block';
+          return;
+        }
+        serverAdminToken = data.token;
+        sessionStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, serverAdminToken);
+        adminPasscodeInput.value = '';
+        showToast('Admin Site unlocked & synced!');
+        updateAdminUI();
+        await syncEntireCatalog({ triggerCloudAuth: false, showNotification: false });
+      } catch (err) {
+        adminLoginError.textContent = 'Connection error while signing in.';
+        adminLoginError.style.display = 'block';
+      }
+    });
+
+    // Change Admin Password Modal handlers
+    openChangePasswordModalBtn.addEventListener('click', () => {
+      changePasswordForm.reset();
+      changePasswordError.style.display = 'none';
+      changePasswordModal.classList.add('open');
+    });
+
+    closeChangePasswordModalBtn.addEventListener('click', () => {
+      changePasswordModal.classList.remove('open');
+    });
+
+    changePasswordModal.addEventListener('click', (e) => {
+      if (e.target === changePasswordModal) {
+        changePasswordModal.classList.remove('open');
+      }
+    });
+
+    changePasswordForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      changePasswordError.style.display = 'none';
+
+      const currentPassword = currentAdminPasswordInput.value.trim();
+      const newPassword = newAdminPasswordInput.value.trim();
+      const confirmPassword = confirmAdminPasswordInput.value.trim();
+
+      if (newPassword !== confirmPassword) {
+        changePasswordError.textContent = 'New password and confirmation do not match.';
+        changePasswordError.style.display = 'block';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/admin/change-password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${serverAdminToken}`
+          },
+          body: JSON.stringify({ currentPassword, newPassword })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          changePasswordError.textContent = data.error || 'Could not update password.';
+          changePasswordError.style.display = 'block';
+          return;
+        }
+        changePasswordModal.classList.remove('open');
+        showToast('Admin password updated!');
+      } catch (err) {
+        changePasswordError.textContent = 'Connection error while updating password.';
+        changePasswordError.style.display = 'block';
+      }
+    });
+
+    adminSignOutBtn.addEventListener('click', async () => {
+      if (serverAdminToken) {
+        try {
+          await fetch('/api/admin/logout', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${serverAdminToken}` }
+          });
+        } catch (e) {
+          // Ignore
+        }
+        serverAdminToken = '';
+        sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
+      }
+      adminPasscodeInput.value = '';
+      showToast('Admin Site locked & signed out');
+      updateAdminUI();
+    });
+
+    function toIsoTimestampString(ts) {
+      if (!ts) return '';
+      if (typeof ts === 'string') return ts;
+      if (typeof ts === 'number') return new Date(ts).toISOString();
+      if (typeof ts.toDate === 'function') {
+        try {
+          return ts.toDate().toISOString();
+        } catch (e) {
+          return '';
+        }
+      }
+      if (typeof ts.seconds === 'number') {
+        return new Date(ts.seconds * 1000).toISOString();
+      }
+      return '';
+    }
+
+    function normalizeProductRecord(raw) {
+      if (!raw || typeof raw !== 'object') return null;
+      const id = String(raw.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      if (!id) return null;
+      return {
+        id,
+        name: String(raw.name || '').trim().slice(0, 100),
+        category: String(raw.category || 'General').trim().slice(0, 60) || 'General',
+        description: String(raw.description || '').trim().slice(0, 1000),
+        price: Math.max(0, Math.min(10000000, Number(raw.price) || 0)),
+        emoji: String(raw.emoji || '🥤').trim().slice(0, 16) || '🥤',
+        imageUrl: String(raw.imageUrl || '').slice(0, 300000),
+        isPublished: raw.isPublished !== false,
+        updatedAt: toIsoTimestampString(raw.updatedAt) || ''
+      };
     }
 
     function loadLocalProducts() {
@@ -1442,36 +1990,106 @@
         if (raw) {
           const parsed = JSON.parse(raw);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed;
+            return parsed.map(normalizeProductRecord).filter(Boolean);
           }
         }
       } catch (e) {
-        console.warn('Could not read local products:', e);
+        console.warn('Could not read local products:', e instanceof Error ? e.message : String(e));
       }
       return null;
     }
 
     function saveLocalProducts(list) {
       try {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(list));
+        const cleanList = Array.isArray(list) ? list.map(normalizeProductRecord).filter(Boolean) : [];
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cleanList));
       } catch (e) {
-        console.warn('Could not save local products:', e);
+        console.warn('Could not save local products:', e instanceof Error ? e.message : String(e));
       }
+    }
+
+    function saveDeletedIds() {
+      try {
+        localStorage.setItem(DELETED_IDS_STORAGE_KEY, JSON.stringify(Array.from(deletedProductIds)));
+      } catch (e) {
+        // Ignore
+      }
+    }
+
+    function getItemTimestampMs(item) {
+      if (!item || !item.updatedAt) return 0;
+      if (typeof item.updatedAt === 'string' || typeof item.updatedAt === 'number') {
+        const parsed = Date.parse(item.updatedAt);
+        return Number.isNaN(parsed) ? 0 : parsed;
+      }
+      if (typeof item.updatedAt.toMillis === 'function') {
+        return item.updatedAt.toMillis();
+      }
+      if (typeof item.updatedAt.seconds === 'number') {
+        return item.updatedAt.seconds * 1000;
+      }
+      return 0;
+    }
+
+    function pickNewerProduct(existingItem, candidateItem) {
+      if (!existingItem) return { ...candidateItem };
+      if (!candidateItem) return { ...existingItem };
+
+      const existingTime = getItemTimestampMs(existingItem);
+      const candidateTime = getItemTimestampMs(candidateItem);
+
+      if (candidateTime > existingTime) {
+        return {
+          ...existingItem,
+          ...candidateItem,
+          imageUrl: candidateItem.imageUrl || existingItem.imageUrl || ''
+        };
+      }
+      if (existingTime > candidateTime) {
+        return {
+          ...candidateItem,
+          ...existingItem,
+          imageUrl: existingItem.imageUrl || candidateItem.imageUrl || ''
+        };
+      }
+
+      // If timestamps are equal or missing, prefer the record that has an uploaded imageUrl
+      const chosenImage = existingItem.imageUrl || candidateItem.imageUrl || '';
+      return {
+        ...existingItem,
+        ...candidateItem,
+        imageUrl: chosenImage
+      };
     }
 
     function mergeCatalogSources() {
       const mergedMap = new Map();
-      const baseList = serverItems.length > 0 ? serverItems : (loadLocalProducts() || DEFAULT_CATALOG);
+      const localItems = loadLocalProducts() || [];
+      const baseList = serverItems.length > 0 ? serverItems : (localItems.length > 0 ? localItems : DEFAULT_CATALOG);
+
       for (const item of baseList) {
-        mergedMap.set(String(item.id), { ...item });
+        const clean = normalizeProductRecord(item);
+        if (!clean || deletedProductIds.has(clean.id)) continue;
+        mergedMap.set(clean.id, clean);
       }
-      for (const [id, fsItem] of firestoreItemsMap.entries()) {
-        mergedMap.set(String(id), { ...mergedMap.get(String(id)), ...fsItem });
+
+      for (const item of localItems) {
+        const clean = normalizeProductRecord(item);
+        if (!clean || deletedProductIds.has(clean.id)) continue;
+        mergedMap.set(clean.id, pickNewerProduct(mergedMap.get(clean.id), clean));
       }
-      products = Array.from(mergedMap.values());
+
+      for (const [idStr, fsItem] of firestoreItemsMap.entries()) {
+        const clean = normalizeProductRecord(fsItem);
+        if (!clean || deletedProductIds.has(clean.id)) continue;
+        mergedMap.set(clean.id, pickNewerProduct(mergedMap.get(clean.id), clean));
+      }
+
+      products = Array.from(mergedMap.values()).map(normalizeProductRecord).filter(Boolean);
       saveLocalProducts(products);
       renderCategories();
       renderProducts();
+      renderAdminInventory();
     }
 
     async function fetchServerCatalog() {
@@ -1480,14 +2098,151 @@
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data)) {
-            serverItems = data;
+            serverItems = data.map(normalizeProductRecord).filter(Boolean);
           }
         }
       } catch (e) {
-        console.warn('Using local catalog fallback:', e);
+        console.warn('Using local catalog fallback:', e instanceof Error ? e.message : String(e));
       }
       mergeCatalogSources();
     }
+
+    function startRealtimeCatalogSync() {
+      // Cross-tab instant sync via BroadcastChannel
+      if (syncChannel) {
+        syncChannel.onmessage = (event) => {
+          const msg = event.data;
+          if (!msg) return;
+          if (msg.type === 'catalog_sync' && Array.isArray(msg.products)) {
+            serverItems = msg.products;
+            mergeCatalogSources();
+            setSyncStatus(`Synced · ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
+          } else if (msg.type === 'product_deleted' && msg.id) {
+            deletedProductIds.add(String(msg.id));
+            saveDeletedIds();
+            serverItems = serverItems.filter((p) => String(p.id) !== String(msg.id));
+            firestoreItemsMap.delete(String(msg.id));
+            mergeCatalogSources();
+          }
+        };
+      }
+
+      // Server-Sent Events stream for real-time cross-device sync
+      if ('EventSource' in window) {
+        try {
+          const es = new EventSource('/api/products/stream');
+          es.onmessage = (event) => {
+            try {
+              const payload = JSON.parse(event.data);
+              if (payload && payload.type === 'catalog_sync' && Array.isArray(payload.products)) {
+                serverItems = payload.products;
+                mergeCatalogSources();
+                setSyncStatus(`Live Synced · ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
+              }
+            } catch (e) {
+              // Ignore malformed event
+            }
+          };
+          } catch (e) {
+            console.warn('SSE stream unavailable:', e instanceof Error ? e.message : String(e));
+          }
+      }
+    }
+
+    async function syncEntireCatalog({ triggerCloudAuth = false, showNotification = true } = {}) {
+      if (!isAdmin()) {
+        showToast('Please log in with your Admin Password first.');
+        return;
+      }
+
+      if (syncCatalogBtnLabel) syncCatalogBtnLabel.textContent = 'Syncing...';
+      setSyncStatus('Syncing catalog...');
+
+      try {
+        // Optional Google Cloud Auth if requested via Cloud Sync button
+        if (triggerCloudAuth && auth && !isFirebaseAdmin()) {
+          try {
+            const provider = new GoogleAuthProvider();
+            const result = await signInWithPopup(auth, provider);
+            const email = String(result.user?.email || '').toLowerCase();
+            if (email !== ADMIN_EMAIL) {
+              await signOut(auth);
+              showToast(`Google account must be ${ADMIN_EMAIL} for Cloud Sync.`);
+            }
+          } catch (authErr) {
+            // Continue with server sync even if popup closed
+          }
+        }
+
+        // 1. Push full catalog to server and broadcast to all connected devices
+        const token = await getAdminAuthToken();
+        const res = await fetch('/api/products/sync', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ products })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.products)) {
+            serverItems = data.products;
+            mergeCatalogSources();
+          }
+        }
+
+        // 2. Broadcast to all open browser tabs
+        if (syncChannel) {
+          syncChannel.postMessage({
+            type: 'catalog_sync',
+            products
+          });
+        }
+
+        // 3. If Firebase Admin is connected, sync all products to Firestore Cloud
+        let cloudSyncedCount = 0;
+        if (db && isFirebaseAdmin()) {
+          for (const prod of products) {
+            await saveProductToFirestore(prod);
+            cloudSyncedCount++;
+          }
+        }
+
+        const timeLabel = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setSyncStatus(
+          cloudSyncedCount > 0
+            ? `Server + Cloud Synced (${timeLabel})`
+            : `Synced to All Devices (${timeLabel})`
+        );
+        updateAdminUI();
+
+        if (showNotification) {
+          showToast(
+            cloudSyncedCount > 0
+              ? `Synced ${products.length} goods to Server & Firebase Cloud!`
+              : `Synced ${products.length} goods across all devices!`
+          );
+        }
+      } catch (err) {
+        console.warn('Catalog sync warning:', err instanceof Error ? err.message : String(err));
+        setSyncStatus('Local & Server Synced');
+        if (showNotification) {
+          showToast('Catalog synced locally.');
+        }
+      } finally {
+        if (syncCatalogBtnLabel) syncCatalogBtnLabel.textContent = 'Sync Now';
+      }
+    }
+
+    syncCatalogBtn?.addEventListener('click', () => {
+      syncEntireCatalog({ triggerCloudAuth: false, showNotification: true });
+    });
+
+    cloudSyncGoogleBtn?.addEventListener('click', () => {
+      syncEntireCatalog({ triggerCloudAuth: true, showNotification: true });
+    });
 
     async function initFirebase() {
       try {
@@ -1521,18 +2276,6 @@
           }
 
           updateAdminUI();
-
-          if (isAdmin()) {
-            for (const prod of products) {
-              if (!firestoreItemsMap.has(String(prod.id))) {
-                try {
-                  await saveProductToFirestore(prod);
-                } catch (e) {
-                  // Ignore background sync error
-                }
-              }
-            }
-          }
         });
 
         const productsQuery = query(collection(db, 'products'), where('isPublished', '==', true));
@@ -1541,7 +2284,14 @@
           (snapshot) => {
             firestoreItemsMap.clear();
             snapshot.forEach((docSnap) => {
-              firestoreItemsMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() });
+              const rawData = docSnap.data() || {};
+              if (rawData.createdAt) {
+                firestoreRawCreatedAtMap.set(docSnap.id, rawData.createdAt);
+              }
+              const cleanRecord = normalizeProductRecord({ id: docSnap.id, ...rawData });
+              if (cleanRecord) {
+                firestoreItemsMap.set(docSnap.id, cleanRecord);
+              }
             });
             mergeCatalogSources();
           },
@@ -1550,15 +2300,29 @@
           }
         );
       } catch (err) {
-        console.warn('Firebase init warning:', err);
+        console.warn('Firebase init warning:', err instanceof Error ? err.message : String(err));
       }
     }
 
     async function saveProductToFirestore(prod) {
-      if (!db || !isAdmin()) return;
+      if (!db || !isFirebaseAdmin()) return;
       const cleanId = String(prod.id).replace(/[^a-zA-Z0-9_-]/g, '') || `prod_${Date.now()}`;
       const docRef = doc(db, 'products', cleanId);
-      const existingFs = firestoreItemsMap.get(cleanId);
+
+      let existingCreatedAt = firestoreRawCreatedAtMap.get(cleanId) || null;
+      let hasExistingDoc = firestoreItemsMap.has(cleanId);
+      try {
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          hasExistingDoc = true;
+          const snapData = snap.data();
+          if (snapData && snapData.createdAt) {
+            existingCreatedAt = snapData.createdAt;
+          }
+        }
+      } catch (e) {
+        // Proceed with local map info if getDoc fails
+      }
 
       const payload = {
         name: String(prod.name || '').trim().slice(0, 100),
@@ -1568,51 +2332,17 @@
         emoji: String(prod.emoji || '🥤').trim().slice(0, 16) || '🥤',
         imageUrl: String(prod.imageUrl || '').slice(0, 300000),
         isPublished: true,
-        ownerId: existingFs?.ownerId || currentUser.uid,
-        createdAt: existingFs?.createdAt || serverTimestamp(),
+        ownerId: currentUser.uid,
+        createdAt: existingCreatedAt || serverTimestamp(),
         updatedAt: serverTimestamp()
       };
 
       try {
-        if (existingFs) {
-          await updateDoc(docRef, {
-            name: payload.name,
-            category: payload.category,
-            description: payload.description,
-            price: payload.price,
-            emoji: payload.emoji,
-            imageUrl: payload.imageUrl,
-            isPublished: true,
-            updatedAt: serverTimestamp()
-          });
-        } else {
-          await setDoc(docRef, payload);
-        }
+        await setDoc(docRef, payload);
       } catch (error) {
-        handleFirestoreError(error, existingFs ? OperationType.UPDATE : OperationType.CREATE, `products/${cleanId}`);
+        handleFirestoreError(error, hasExistingDoc ? OperationType.UPDATE : OperationType.CREATE, `products/${cleanId}`);
       }
     }
-
-    authSyncBtn.addEventListener('click', async () => {
-      if (!auth) return;
-      if (currentUser) {
-        await signOut(auth);
-        showToast('Signed out');
-      } else {
-        try {
-          const provider = new GoogleAuthProvider();
-          const result = await signInWithPopup(auth, provider);
-          const signedInEmail = String(result.user?.email || '').toLowerCase();
-          if (signedInEmail === ADMIN_EMAIL) {
-            showToast('Welcome Admin! Picture upload & catalog editing unlocked.');
-          } else {
-            showToast('Signed in. Note: Only the store admin can upload pictures.');
-          }
-        } catch (err) {
-          console.warn('Sign-in cancelled or failed:', err);
-        }
-      }
-    });
 
     // Compress uploaded image file via HTML5 Canvas so it loads fast and fits inside Firestore & API limits
     function compressImageFile(file, maxDimension = 640, quality = 0.78) {
@@ -1738,14 +2468,19 @@
       descCharCounter.textContent = `${productDescInput.value.length} / 1000`;
     });
 
-    function openProductModal(productToEdit = null) {
+    function populateAdminForm(productToEdit = null) {
       if (!isAdmin()) {
-        showToast('Only the store admin can upload pictures or edit goods.');
+        switchView('admin');
+        showToast('Please sign in on the Admin Site to upload pictures or edit goods.');
         return;
       }
 
+      switchView('admin');
+
       if (productToEdit) {
-        productModalTitle.textContent = `Edit ${productToEdit.name}`;
+        productModalTitle.textContent = `Edit: ${productToEdit.name}`;
+        saveProductBtnText.textContent = `Save Changes to ${productToEdit.name}`;
+        resetFormBtn.classList.remove('hidden-view');
         editProductIdInput.value = productToEdit.id;
         productNameInput.value = productToEdit.name || '';
         productPriceInput.value = productToEdit.price ?? '';
@@ -1762,8 +2497,11 @@
           imageUrlInput.value = '';
         }
         updateImagePreview(productToEdit.imageUrl || '');
+        productForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } else {
         productModalTitle.textContent = 'Upload New Good';
+        saveProductBtnText.textContent = 'Upload & Save Good';
+        resetFormBtn.classList.add('hidden-view');
         editProductIdInput.value = '';
         productForm.reset();
         productCategoryInput.value = 'Non-Carbonated';
@@ -1774,18 +2512,10 @@
         });
         updateImagePreview('');
       }
-      productModal.classList.add('open');
       lucide.createIcons();
     }
 
-    function closeProductModal() {
-      productModal.classList.remove('open');
-    }
-
-    openUploadModalBtn.addEventListener('click', () => openProductModal(null));
-    document.getElementById('heroUploadBtn').addEventListener('click', () => openProductModal(null));
-    document.getElementById('closeProductModalBtn').addEventListener('click', closeProductModal);
-    document.getElementById('cancelProductModalBtn').addEventListener('click', closeProductModal);
+    resetFormBtn.addEventListener('click', () => populateAdminForm(null));
 
     productForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -1805,6 +2535,7 @@
 
       if (!name) return;
 
+      const nowIso = new Date().toISOString();
       const productRecord = {
         id,
         name,
@@ -1813,8 +2544,12 @@
         price,
         emoji,
         imageUrl,
-        isPublished: true
+        isPublished: true,
+        updatedAt: nowIso
       };
+
+      deletedProductIds.delete(String(id));
+      saveDeletedIds();
 
       const existingIdx = products.findIndex((p) => String(p.id) === String(id));
       if (existingIdx >= 0) {
@@ -1825,11 +2560,16 @@
       saveLocalProducts(products);
       renderCategories();
       renderProducts();
-      closeProductModal();
-      showToast(editingId ? `Updated "${name}"` : `Uploaded "${name}" to store!`);
+      renderAdminInventory();
+      populateAdminForm(null);
+      showToast(editingId ? `Updated & synced "${name}"!` : `Uploaded & synced "${name}"!`);
+
+      if (syncChannel) {
+        syncChannel.postMessage({ type: 'catalog_sync', products });
+      }
 
       try {
-        const token = await currentUser.getIdToken();
+        const token = await getAdminAuthToken();
         const res = await fetch(editingId ? `/api/products/${encodeURIComponent(id)}` : '/api/products', {
           method: editingId ? 'PUT' : 'POST',
           headers: {
@@ -1845,10 +2585,12 @@
           else serverItems.unshift(saved);
         }
       } catch (err) {
-        console.warn('Server save fallback to Firestore:', err);
+        console.warn('Server save fallback:', err);
       }
 
-      await saveProductToFirestore(productRecord);
+      if (isFirebaseAdmin()) {
+        await saveProductToFirestore(productRecord);
+      }
     });
 
     async function deleteProduct(productId) {
@@ -1860,6 +2602,8 @@
       const target = products.find((p) => String(p.id) === String(productId));
       if (!target) return;
 
+      deletedProductIds.add(String(productId));
+      saveDeletedIds();
       products = products.filter((p) => String(p.id) !== String(productId));
       serverItems = serverItems.filter((p) => String(p.id) !== String(productId));
       firestoreItemsMap.delete(String(productId));
@@ -1868,10 +2612,15 @@
       updateCart();
       renderCategories();
       renderProducts();
-      showToast(`Removed "${target.name}"`);
+      renderAdminInventory();
+      showToast(`Removed & synced "${target.name}"`);
+
+      if (syncChannel) {
+        syncChannel.postMessage({ type: 'product_deleted', id: String(productId) });
+      }
 
       try {
-        const token = await currentUser.getIdToken();
+        const token = await getAdminAuthToken();
         await fetch(`/api/products/${encodeURIComponent(productId)}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }
@@ -1880,7 +2629,7 @@
         // Ignore
       }
 
-      if (db && isAdmin()) {
+      if (db && isFirebaseAdmin()) {
         try {
           await deleteDoc(doc(db, 'products', String(productId)));
         } catch (err) {
@@ -1888,6 +2637,60 @@
         }
       }
     }
+
+    function renderAdminInventory() {
+      if (!adminInventoryList) return;
+      adminInventoryCount.textContent = `${products.length} ${products.length === 1 ? 'good' : 'goods'}`;
+
+      adminInventoryList.innerHTML = products
+        .map((product) => {
+          const hasImage = Boolean(product.imageUrl && product.imageUrl.trim());
+          return `
+            <div class="admin-inventory-item">
+              <div class="admin-item-left">
+                <div class="admin-item-thumb">
+                  ${
+                    hasImage
+                      ? `<img src="${escapeHtml(product.imageUrl)}" alt="${escapeHtml(product.name)}" />`
+                      : escapeHtml(product.emoji || '🥤')
+                  }
+                </div>
+                <div class="admin-item-details">
+                  <div class="admin-item-title">${escapeHtml(product.name)}</div>
+                  <div class="admin-item-sub">₦${Number(product.price || 0).toLocaleString()} · ${escapeHtml(product.category)}</div>
+                  <div class="admin-item-desc">${escapeHtml(product.description || 'No description added yet.')}</div>
+                </div>
+              </div>
+              <div class="admin-item-actions">
+                <button type="button" class="secondary-header-btn admin-edit-item-btn" data-id="${escapeHtml(product.id)}">
+                  <i data-lucide="camera" style="width: 14px; height: 14px;"></i>
+                  <span>${hasImage ? 'Edit / Change Photo' : 'Upload Photo & Edit'}</span>
+                </button>
+                <button type="button" class="remove-btn admin-delete-item-btn" data-id="${escapeHtml(product.id)}" style="padding: 8px 10px; border-radius: 8px;">
+                  Delete
+                </button>
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+
+      lucide.createIcons();
+    }
+
+    adminInventoryList.addEventListener('click', (e) => {
+      const editBtn = e.target.closest('.admin-edit-item-btn');
+      if (editBtn) {
+        const prod = products.find((p) => String(p.id) === String(editBtn.dataset.id));
+        if (prod) populateAdminForm(prod);
+        return;
+      }
+
+      const delBtn = e.target.closest('.admin-delete-item-btn');
+      if (delBtn) {
+        deleteProduct(delBtn.dataset.id);
+      }
+    });
 
     function openDetailModal(productId) {
       const product = products.find((p) => String(p.id) === String(productId));
@@ -1941,7 +2744,7 @@
       });
       document.getElementById('detailEditBtn')?.addEventListener('click', () => {
         detailModal.classList.remove('open');
-        openProductModal(product);
+        populateAdminForm(product);
       });
       document.getElementById('detailAddCartBtn').addEventListener('click', () => {
         addToCart(product.id);
@@ -1951,10 +2754,6 @@
 
     detailModal.addEventListener('click', (e) => {
       if (e.target === detailModal) detailModal.classList.remove('open');
-    });
-
-    productModal.addEventListener('click', (e) => {
-      if (e.target === productModal) closeProductModal();
     });
 
     function renderCategories() {
@@ -2004,18 +2803,8 @@
         productsGrid.innerHTML = `
           <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; background: #141d26; border-radius: 14px; border: 1px solid rgba(255,255,255,0.06);">
             <p style="color: #9ca3af; margin-bottom: 14px;">No matching goods found.</p>
-            ${
-              adminActive
-                ? `<button type="button" class="upload-header-btn" id="emptyUploadBtn" style="margin: 0 auto;">
-                     <i data-lucide="plus" style="width: 16px; height: 16px;"></i>
-                     Upload a New Good
-                   </button>`
-                : ''
-            }
           </div>
         `;
-        lucide.createIcons();
-        document.getElementById('emptyUploadBtn')?.addEventListener('click', () => openProductModal(null));
         return;
       }
 
@@ -2092,7 +2881,7 @@
       if (editBtn) {
         e.stopPropagation();
         const prod = products.find((p) => String(p.id) === String(editBtn.dataset.id));
-        if (prod) openProductModal(prod);
+        if (prod) populateAdminForm(prod);
         return;
       }
 
@@ -2342,10 +3131,17 @@
       if (e.target === paymentModal) paymentModal.classList.remove('open');
     });
 
-    // Boot application
-    updateAdminUI();
+    // Check if URL requests admin view directly (/admin or #admin)
+    if (window.location.pathname.includes('/admin') || window.location.hash === '#admin') {
+      switchView('admin');
+    } else {
+      updateAdminUI();
+    }
+
+    verifyStoredAdminSession();
     updateCart();
     fetchServerCatalog();
+    startRealtimeCatalogSync();
     initFirebase();
   </script>
  </body>

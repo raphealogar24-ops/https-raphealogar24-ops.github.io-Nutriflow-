@@ -3,40 +3,45 @@
 ## 1. Data Invariants
 
 1. **Default Deny Catch-All**: Any path not explicitly matched under `/databases/{database}/documents` is denied for both `read` and `write`.
-2. **Path Variable Hardening**: Every single-document operation (`get`, `create`, `update`, `delete`) on `/products/{productId}` and `/admins/{adminId}` validates that the document ID is a string of length `1..128` matching `^[a-zA-Z0-9_\-]+$`.
-3. **Admin-Only Catalog Management (`isAdmin`)**:
-   - Only verified administrators (`request.auth.token.email_verified == true` and either `request.auth.token.email == 'raphealogar24@gmail.com'` or `exists(/databases/$(database)/documents/admins/$(request.auth.uid))`) can `create`, `update`, or `delete` documents in `/products/{productId}` (including uploading/updating product pictures and descriptions).
-   - Non-admin users (even if authenticated and email-verified) are strictly prohibited from creating, updating, or deleting products.
-4. **Strict Schema & Key Validation (`isValidProduct`)**:
-   - Every product document must contain exact required keys: `['name', 'category', 'description', 'price', 'emoji', 'imageUrl', 'isPublished', 'ownerId', 'createdAt', 'updatedAt']` and no shadow keys (`hasAll` + `hasOnly`).
-   - `name`: string, `1..100` chars.
-   - `category`: string, `1..60` chars.
-   - `description`: string, `0..1000` chars.
-   - `price`: int or float, `0..10000000`.
-   - `emoji`: string, `1..16` chars.
-   - `imageUrl`: string, `0..300000` chars.
-   - `isPublished`: boolean.
-   - `ownerId`: string, `1..128` chars matching `^[a-zA-Z0-9_\-]+$`.
-   - `createdAt` & `updatedAt`: `timestamp`.
-5. **Identity & Temporal Integrity**:
-   - On `create`, `incoming().ownerId == request.auth.uid`, `incoming().createdAt == request.time`, and `incoming().updatedAt == request.time`.
-   - On `update`, `ownerId` and `createdAt` are immutable (`incoming().ownerId == existing().ownerId` and `incoming().createdAt == existing().createdAt`) and `incoming().updatedAt == request.time`.
-6. **Query Enforcer (`allow list`)**:
-   - `list` on `/products` evaluates `existing().isPublished == true || (isVerifiedUser() && request.auth.token.email == 'raphealogar24@gmail.com')`.
+2. **Path Variable Hardening**:
+   - Every wildcard ID (`productId`, `adminId`) must be a string with length between `1` and `128` characters matching `^[a-zA-Z0-9_-]+$`.
+3. **Strict Schema Enforcement (`products/{productId}`)**:
+   - Allowed & Required Keys (`hasAll` & `hasOnly`):
+     - `name`: `string`, length `1..100`
+     - `category`: `string`, length `1..60`
+     - `description`: `string`, length `0..1000`
+     - `price`: `int` or `float`, `0 <= price <= 10000000`
+     - `emoji`: `string`, length `1..16`
+     - `imageUrl`: `string`, length `0..300000` (supports HTTPS URLs or compressed data URLs under 300KB)
+     - `isPublished`: `bool`
+     - `ownerId`: `string`, length `1..128`, matching `^[a-zA-Z0-9_-]+$`
+     - `createdAt`: `timestamp`
+     - `updatedAt`: `timestamp`
+4. **Timestamp & Ownership Integrity**:
+   - On `create`: `ownerId == request.auth.uid`, `createdAt == request.time`, and `updatedAt == request.time`.
+   - On `update`: `ownerId == request.auth.uid` and `updatedAt == request.time`.
 
----
+## 2. Access Control Matrix
 
-## 2. The "Dirty Dozen" Payloads
+| Collection Path | `get` | `list` | `create` | `update` | `delete` |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `/products/{productId}` | Public if `resource.data.isPublished == true`, or `isAdmin()` | Public if `resource.data.isPublished == true`, or verified store admin (`raphealogar24@gmail.com`) | **Admin Only** (`isAdmin()`) with strict schema & `ownerId == request.auth.uid` | **Admin Only** (`isAdmin()`) with strict schema & `ownerId == request.auth.uid` | **Admin Only** (`isAdmin()`) |
+| `/admins/{adminId}` | Verified user reading own record or `isAdmin()` | `false` | `false` (Managed out-of-band only) | `false` | `false` |
 
-1. **Unauthenticated Write**: Creating a product with `auth == null`.
-2. **Non-Admin Verified User Write**: Creating/uploading a product photo as a regular verified user (`user@example.com`).
-3. **Unverified Admin Email Spoof**: Creating a product with `email: 'raphealogar24@gmail.com'` but `email_verified: false`.
-4. **Identity Spoofing on Create**: Admin setting `ownerId: 'other_uid'` when `request.auth.uid == 'admin_uid'`.
-5. **Shadow Field Injection on Create**: Admin adding `{ isVerified: true }` alongside valid Product fields.
-6. **Oversized Description / Resource Exhaustion**: Admin setting `description` to a 2,000-character string (exceeds `maxLength: 1000`).
-7. **Negative Price**: Admin setting `price: -500`.
-8. **ID Poisoning**: Admin creating a document with a path ID containing spaces/special chars or exceeding 128 chars.
-9. **Forged Creation Timestamp**: Admin creating a product with a past/future `createdAt` instead of `request.time`.
-10. **Owner Hijack on Update**: Admin updating an existing product to change `ownerId` to another user.
-11. **Immutable `createdAt` Mutation on Update**: Admin changing `createdAt` during an update.
-12. **Unauthorized Privilege Escalation**: Writing to `/admins/{adminId}` from a client SDK.
+### Admin Identity Definition (`isAdmin()`)
+- Must be signed in (`request.auth != null`) AND email-verified (`request.auth.token.email_verified == true`).
+- Must either match the store owner's verified email (`request.auth.token.email == 'raphealogar24@gmail.com'`) OR have an existing document at `/databases/$(database)/documents/admins/$(request.auth.uid)`.
+
+## 3. Adversarial Attack Scenarios
+
+1. **Unauthenticated Write**: Anonymous visitor attempts to create or update a product in `/products/{productId}` -> Denied.
+2. **Non-Admin Authenticated Write**: A logged-in, email-verified user (`customer@example.com`) attempts to upload a photo or create/update/delete a product -> Denied (`isAdmin()` is false).
+3. **Unverified Email Admin Spoof**: A user with `email == 'raphealogar24@gmail.com'` but `email_verified == false` attempts to write to `/products/{productId}` -> Denied.
+4. **Identity Spoofing on Create**: Admin attempts to create a product with `ownerId` set to another UID -> Denied.
+5. **Shadow Field Injection**: Admin attempts to write an undeclared field `isAdmin: true` or `discount: 99` on a product -> Denied by `hasOnly`.
+6. **Payload Size / DoS**: Admin submits a 5,000-character `description` or 500KB `imageUrl` -> Denied by `.size()` bounds.
+7. **Negative Price**: Admin submits `price: -500` -> Denied by `price >= 0`.
+8. **ID Poisoning**: Admin attempts to create a document with spaces or special characters in `productId` -> Denied by `isValidId(productId)`.
+9. **Timestamp Forgery**: Admin attempts to set `createdAt` or `updatedAt` to a past/future timestamp -> Denied by `request.time` check.
+10. **Owner Hijack on Update**: Admin attempts to change `ownerId` to a different UID during an update -> Denied.
+11. **Privilege Escalation**: Any client attempts to create or modify `/admins/{adminId}` -> Denied (`allow write: if false`).
