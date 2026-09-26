@@ -1,0 +1,20 @@
+{
+  "name": "rp-nutriflow",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "echo 'Static site - no build step required'",
+    "start": "node server.js",
+    "lint": "eslint firestore.rules DRAFT_firestore.rules"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "firebase": "^12.19.0"
+  },
+  "devDependencies": {
+    "@firebase/eslint-plugin-security-rules": "^0.0.2",
+    "eslint": "^10.11.0"
+  }
+}

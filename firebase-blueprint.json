@@ -1,0 +1,111 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "A drink or good available in the R&P Nutriflow store catalog with image and description.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the good or beverage",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of the good",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the good, ingredients, or size",
+          "minLength": 0,
+          "maxLength": 1000
+        },
+        "price": {
+          "type": "number",
+          "description": "Price of the good in Naira (NGN)"
+        },
+        "emoji": {
+          "type": "string",
+          "description": "Fallback emoji icon when no image is provided",
+          "minLength": 1,
+          "maxLength": 16
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "Uploaded product image (compressed data URI or HTTPS URL)",
+          "minLength": 0,
+          "maxLength": 300000
+        },
+        "isPublished": {
+          "type": "boolean",
+          "description": "Whether the product is visible in the public store catalog"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the user who uploaded the product",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation server timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update server timestamp"
+        }
+      },
+      "required": [
+        "name",
+        "category",
+        "description",
+        "price",
+        "emoji",
+        "imageUrl",
+        "isPublished",
+        "ownerId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Store administrator record keyed by Firebase Auth UID.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Admin user UID",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation server timestamp"
+        }
+      },
+      "required": [
+        "uid",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Store catalog goods with uploaded images and descriptions"
+    },
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Administrator UID lookup collection"
+    }
+  }
+}
