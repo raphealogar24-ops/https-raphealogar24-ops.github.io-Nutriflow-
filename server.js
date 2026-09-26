@@ -14,6 +14,17 @@ const DEFAULT_INITIAL_PASSWORD = process.env.ADMIN_PASSCODE || '8144899449';
 
 app.use(express.json({ limit: '10mb' }));
 
+// Enable CORS so the user's GitHub Pages site (*.github.io) can also connect directly to the API
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
 const DATA_DIR = path.join(__dirname, 'data');
 const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json');
 const ADMIN_AUTH_FILE = path.join(DATA_DIR, 'admin_auth.json');
@@ -439,6 +450,100 @@ app.delete('/api/products/:id', requireAdmin, (req, res) => {
   writeProducts(filtered);
   broadcastCatalogUpdate(filtered);
   res.json({ success: true, id });
+});
+
+app.get('/api/source-html', (req, res) => {
+  try {
+    const rawHtml = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.send(rawHtml);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to read index.html source.' });
+  }
+});
+
+app.post('/api/github/sync', requireAdmin, async (req, res) => {
+  try {
+    const { repo, branch = 'main', filePath = 'index.html', token, content, commitMessage } = req.body || {};
+    const cleanRepo = String(repo || '')
+      .trim()
+      .replace(/^https?:\/\/github\.com\//i, '')
+      .replace(/\.git$/i, '')
+      .replace(/^\/+|\/+$/g, '');
+
+    if (!cleanRepo || !cleanRepo.includes('/')) {
+      return res.status(400).json({ error: 'Please enter a valid GitHub repository (e.g. username/Nutriflow).' });
+    }
+    if (!token || !String(token).trim()) {
+      return res.status(400).json({ error: 'Please provide your GitHub Personal Access Token.' });
+    }
+    if (!content) {
+      return res.status(400).json({ error: 'Missing HTML content to sync.' });
+    }
+
+    const cleanBranch = String(branch || 'main').trim() || 'main';
+    const cleanPath = String(filePath || 'index.html').replace(/^\/+/, '') || 'index.html';
+    const apiUrl = `https://api.github.com/repos/${cleanRepo}/contents/${cleanPath}`;
+    const headers = {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${String(token).trim()}`,
+      'User-Agent': 'RP-Nutriflow-Admin-Sync',
+      'X-GitHub-Api-Version': '2022-11-28'
+    };
+
+    // Check if file already exists on the branch to get its current SHA
+    let existingSha = undefined;
+    const getRes = await fetch(`${apiUrl}?ref=${encodeURIComponent(cleanBranch)}`, {
+      method: 'GET',
+      headers
+    });
+    if (getRes.ok) {
+      const existingData = await getRes.json();
+      if (existingData && existingData.sha) {
+        existingSha = existingData.sha;
+      }
+    }
+
+    const putBody = {
+      message: commitMessage || `Sync R&P Nutriflow Admin Password & Store Catalog (${new Date().toISOString()})`,
+      content: Buffer.from(String(content), 'utf8').toString('base64'),
+      branch: cleanBranch
+    };
+    if (existingSha) {
+      putBody.sha = existingSha;
+    }
+
+    const putRes = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(putBody)
+    });
+
+    const putData = await putRes.json().catch(() => ({}));
+    if (!putRes.ok) {
+      return res.status(putRes.status).json({
+        error: putData.message || 'GitHub API rejected the sync request. Check your repo name, branch, and token permissions.'
+      });
+    }
+
+    const [owner, repoName] = cleanRepo.split('/');
+    const pagesUrl = `https://${owner}.github.io/${repoName}/`;
+
+    return res.json({
+      success: true,
+      repo: cleanRepo,
+      branch: cleanBranch,
+      commitUrl: putData.commit?.html_url || `https://github.com/${cleanRepo}/commits/${cleanBranch}`,
+      pagesUrl
+    });
+  } catch (err) {
+    return res.status(500).json({
+      error: err instanceof Error ? err.message : 'Unexpected error while syncing to GitHub.'
+    });
+  }
 });
 
 app.use(express.static(__dirname));
